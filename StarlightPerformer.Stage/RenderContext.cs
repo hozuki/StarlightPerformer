@@ -4,14 +4,18 @@ using SharpDX.Direct2D1;
 using SharpDX.Mathematics.Interop;
 using StarlightPerformer.Core;
 using Brush = SharpDX.Direct2D1.Brush;
+using Bitmap = SharpDX.Direct2D1.Bitmap;
 
 namespace StarlightPerformer.Stage {
     public sealed class RenderContext : DisposableBase {
 
-        public RenderContext(RenderTarget renderTarget, Size clientSize) {
+        public RenderContext(StageRenderer renderer, RenderTarget renderTarget, Size clientSize) {
+            Renderer = renderer;
             RenderTarget = renderTarget;
             ClientSize = clientSize;
         }
+
+        public StageRenderer Renderer { get; }
 
         public RenderTarget RenderTarget { get; }
 
@@ -19,7 +23,7 @@ namespace StarlightPerformer.Stage {
 
         public void BeginDraw() {
             RenderTarget.BeginDraw();
-            RenderTarget.Clear(Color.Black.ColorToRC4());
+            RenderTarget.Clear(Renderer.ClearColor.ColorToRC4());
         }
 
         public void EndDraw() {
@@ -103,6 +107,46 @@ namespace StarlightPerformer.Stage {
             }
             //var path = GetPathFromPolygon(polygon, RenderTarget.Factory);
             //RenderTarget.FillGeometry(path, brush);
+        }
+
+        public void DrawImage(Bitmap bitmap, float x, float y) {
+            DrawImage(bitmap, x, y, 1f);
+        }
+
+        public void DrawImage(Bitmap bitmap, float x, float y, float w, float h) {
+            DrawImage(bitmap, x, y, w, h, 1f);
+        }
+
+        public void DrawImage(Bitmap bitmap, float x, float y, float opacity) {
+            var size = bitmap.Size;
+            var dest = new RawRectangleF(x, y, size.Width, size.Height);
+            RenderTarget.DrawBitmap(bitmap, dest, opacity, BitmapInterpolationMode.Linear);
+        }
+
+        public void DrawImage(Bitmap bitmap, float x, float y, float w, float h, float opacity) {
+            var dest = new RawRectangleF(x, y, w, h);
+            RenderTarget.DrawBitmap(bitmap, dest, opacity, BitmapInterpolationMode.Linear);
+        }
+
+        public void DrawImage(Bitmap bitmap, float x, float y, float sx, float sy, float sw, float sh) {
+            DrawImage(bitmap, x, y, sx, sy, sw, sh, 1f);
+        }
+
+        public void DrawImage(Bitmap bitmap, float x, float y, float w, float h, float sx, float sy, float sw, float sh) {
+            DrawImage(bitmap, x, y, w, h, sx, sy, sw, sh, 1f);
+        }
+
+        public void DrawImage(Bitmap bitmap, float x, float y, float sx, float sy, float sw, float sh, float opacity) {
+            var size = bitmap.Size;
+            var dest = new RawRectangleF(x, y, x + size.Width, y + size.Height);
+            var src = new RawRectangleF(sx, sy, sx + sw, sy + sh);
+            RenderTarget.DrawBitmap(bitmap, dest, opacity, BitmapInterpolationMode.Linear, src);
+        }
+
+        public void DrawImage(Bitmap bitmap, float x, float y, float w, float h, float sx, float sy, float sw, float sh, float opacity) {
+            var dest = new RawRectangleF(x, y, x + w, y + h);
+            var src = new RawRectangleF(sx, sy, sx + sw, sy + sh);
+            RenderTarget.DrawBitmap(bitmap, dest, opacity, BitmapInterpolationMode.Linear, src);
         }
 
         protected override void Dispose(bool disposing) {

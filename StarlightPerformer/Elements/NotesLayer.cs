@@ -8,7 +8,7 @@ using SharpDX.Mathematics.Interop;
 using StarlightPerformer.Beatmap;
 using StarlightPerformer.Core;
 using StarlightPerformer.Stage;
-using Brush = SharpDX.Direct2D1.Brush;
+using Bitmap = SharpDX.Direct2D1.Bitmap;
 using Pen = StarlightPerformer.Stage.Pen;
 
 namespace StarlightPerformer.Elements {
@@ -21,21 +21,26 @@ namespace StarlightPerformer.Elements {
         public override void OnGotContext(RenderContext context) {
             base.OnGotContext(context);
 
-            CeilingPen = new Pen(Color.Red, context);
-            HoldLinePen = new Pen(Color.Yellow, context);
-            SyncLinePen = new Pen(Color.DodgerBlue, context);
-            FlickLinePen = new Pen(Color.OliveDrab, context);
-            SlideLinePen = new Pen(Color.LightPink, context);
+            NotesImage = D2DHelper.LoadBitmap(NotesBitmapFilePath, context.RenderTarget);
 
-            var t = context.RenderTarget;
-            NoteCommonStroke = new Pen(Color.FromArgb(0x22, 0x22, 0x22), NoteShapeStrokeWidth, context);
-            NoteCommonFill = new SolidColorBrush(t, Color.White.ColorToRC4());
-            TapNoteShapeStroke = new Pen(Color.FromArgb(0xFF, 0x33, 0x66), NoteShapeStrokeWidth, context);
-            HoldNoteShapeStroke = new Pen(Color.FromArgb(0xFF, 0xBB, 0x22), NoteShapeStrokeWidth, context);
-            HoldNoteShapeFillInner = new SolidColorBrush(t, Color.White.ColorToRC4());
-            FlickNoteShapeStroke = new Pen(Color.FromArgb(0x22, 0x55, 0xBB), NoteShapeStrokeWidth, context);
-            FlickNoteShapeFillInner = new SolidColorBrush(t, Color.White.ColorToRC4());
-            SlideNoteShapeFillInner = new SolidColorBrush(t, Color.White.ColorToRC4());
+            var size = context.ClientSize;
+            var props = new LinearGradientBrushProperties {
+                StartPoint = new RawVector2(size.Height, 0),
+                EndPoint = new RawVector2(0, size.Height)
+            };
+            var gradientStops = new List<GradientStop>();
+            var colorCount = GradientColors.Length;
+            for (var i = 0; i < colorCount; ++i) {
+                gradientStops.Add(new GradientStop {
+                    Color = GradientColors[i].ColorToRC4(),
+                    Position = (float)i / (colorCount - 1)
+                });
+            }
+            var collection = new GradientStopCollection(context.RenderTarget, gradientStops.ToArray(), ExtendMode.Wrap);
+            ConnectionBrush = new LinearGradientBrushEx(context.RenderTarget, props, collection);
+            ConnectionPen = new Pen(ConnectionBrush.Brush, ConnectionStrokeWidth);
+
+            SyncLinePen = new Pen(Color.White, 3, context);
         }
 
         protected override void DrawInternal(GameTime gameTime, RenderContext context) {
@@ -45,20 +50,11 @@ namespace StarlightPerformer.Elements {
 
         protected override void Dispose(bool disposing) {
             if (disposing) {
-                CeilingPen.Dispose();
-                HoldLinePen.Dispose();
-                SyncLinePen.Dispose();
-                FlickLinePen.Dispose();
-                SyncLinePen.Dispose();
+                NotesImage.Dispose();
 
-                NoteCommonStroke.Dispose();
-                NoteCommonFill.Dispose();
-                TapNoteShapeStroke.Dispose();
-                HoldNoteShapeStroke.Dispose();
-                HoldNoteShapeFillInner.Dispose();
-                FlickNoteShapeStroke.Dispose();
-                FlickNoteShapeFillInner.Dispose();
-                SlideNoteShapeFillInner.Dispose();
+                ConnectionPen.Dispose();
+                ConnectionBrush.Dispose();
+                SyncLinePen.Dispose();
             }
         }
 
@@ -128,12 +124,6 @@ namespace StarlightPerformer.Elements {
             }
         }
 
-        public static void DrawSelectedRect(RenderContext context, double now, Note note, Pen pen) {
-            float x = GetNoteXPosition(context, now, note), y = GetNoteYPosition(context, now, note);
-            float r = GetNoteRadius(context, now, note);
-            context.DrawRectangle(pen, x - r, y - r, r * 2f, r * 2f);
-        }
-
         public static void DrawSyncLine(RenderContext context, double now, Note note1, Note note2) {
             if (!IsNoteOnStage(note1, now) || !IsNoteOnStage(note2, now)) {
                 return;
@@ -147,7 +137,7 @@ namespace StarlightPerformer.Elements {
         }
 
         public static void DrawHoldLine(RenderContext context, double now, Note startNote, Note endNote) {
-            DrawHoldLine(context, now, startNote, endNote, HoldLinePen);
+            DrawHoldLine(context, now, startNote, endNote, ConnectionPen);
         }
 
         public static void DrawHoldLine(RenderContext context, double now, Note startNote, Note endNote, Pen pen) {
@@ -164,10 +154,42 @@ namespace StarlightPerformer.Elements {
             float y1 = GetNoteYPosition(context, t1);
             float y2 = GetNoteYPosition(context, t2);
             float ymid = GetNoteYPosition(context, tmid);
-            float xcontrol1, xcontrol2, ycontrol1, ycontrol2;
-            GetBezierFromQuadratic(x1, xmid, x2, out xcontrol1, out xcontrol2);
-            GetBezierFromQuadratic(y1, ymid, y2, out ycontrol1, out ycontrol2);
-            context.DrawBezier(pen, x1, y1, xcontrol1, ycontrol1, xcontrol2, ycontrol2, x2, y2);
+            float r1 = GetNoteRadius(context, now, startNote);
+            float r2 = GetNoteRadius(context, now, endNote);
+            float rmid = GetNoteRadius(context, now, (startNote.HitTiming + endNote.HitTiming) / 2);
+
+            var xl1 = x1 - r1;
+            var xl2 = x2 - r2;
+            var xr1 = x1 + r1;
+            var xr2 = x2 + r2;
+            var xlm = xmid - rmid;
+            var xrm = xmid + rmid;
+
+            GetBezierFromQuadratic(xl1, xlm, xl2, out var xlc1, out var xlc2);
+            GetBezierFromQuadratic(xr1, xrm, xr2, out var xrc1, out var xrc2);
+            GetBezierFromQuadratic(y1, ymid, y2, out var yc1, out var yc2);
+
+            using (var path = new PathGeometry(context.RenderTarget.Factory)) {
+                using (var s = path.Open()) {
+                    s.SetFillMode(FillMode.Winding);
+                    s.BeginFigure(new RawVector2(xl1, y1), FigureBegin.Filled);
+                    s.AddBezier(new BezierSegment {
+                        Point1 = new RawVector2(xlc1, yc1),
+                        Point2 = new RawVector2(xlc2, yc2),
+                        Point3 = new RawVector2(xl2, y2)
+                    });
+                    s.AddLine(new RawVector2(xr2, y2));
+                    s.AddBezier(new BezierSegment {
+                        Point1 = new RawVector2(xrc2, yc2),
+                        Point2 = new RawVector2(xrc1, yc1),
+                        Point3 = new RawVector2(xr1, y1)
+                    });
+                    s.AddLine(new RawVector2(xl1, y1));
+                    s.EndFigure(FigureEnd.Closed);
+                    s.Close();
+                }
+                context.RenderTarget.FillGeometry(path, ConnectionBrush.Brush);
+            }
         }
 
         public static void DrawSlideLine(RenderContext context, double now, Note startNote, Note endNote) {
@@ -176,14 +198,14 @@ namespace StarlightPerformer.Elements {
                 return;
             }
             if (startNote.IsSlideEnd || IsNoteOnStage(startNote, now)) {
-                DrawHoldLine(context, now, startNote, endNote, SlideLinePen);
+                DrawHoldLine(context, now, startNote, endNote, ConnectionPen);
                 return;
             }
             if (IsNotePassed(startNote, now)) {
                 var nextSlideNote = startNote.NextFlickOrSlide;
                 if (nextSlideNote == null) {
                     // Actually, here is an example of invalid format. :)
-                    DrawHoldLine(context, now, startNote, endNote, SlideLinePen);
+                    DrawHoldLine(context, now, startNote, endNote, ConnectionPen);
                     return;
                 }
                 if (IsNotePassed(nextSlideNote, now)) {
@@ -203,27 +225,18 @@ namespace StarlightPerformer.Elements {
                 float xcontrol1, xcontrol2, ycontrol1, ycontrol2;
                 GetBezierFromQuadratic(x1, xmid, x2, out xcontrol1, out xcontrol2);
                 GetBezierFromQuadratic(y1, ymid, y2, out ycontrol1, out ycontrol2);
-                context.DrawBezier(SlideLinePen, x1, y1, xcontrol1, ycontrol1, xcontrol2, ycontrol2, x2, y2);
+                context.DrawBezier(ConnectionPen, x1, y1, xcontrol1, ycontrol1, xcontrol2, ycontrol2, x2, y2);
             }
         }
 
         public static void DrawFlickLine(RenderContext context, double now, Note startNote, Note endNote) {
-            DrawSimpleLine(context, now, startNote, endNote, FlickLinePen);
-        }
-
-        public static void DrawSimpleLine(RenderContext context, double now, Note startNote, Note endNote, Pen pen) {
             OnStageStatus s1 = GetNoteOnStageStatus(startNote, now), s2 = GetNoteOnStageStatus(endNote, now);
             if (s1 != OnStageStatus.OnStage && s2 != OnStageStatus.OnStage && s1 == s2) {
                 return;
             }
             float x1, x2, y1, y2;
             GetNotePairPositions(context, now, startNote, endNote, out x1, out x2, out y1, out y2);
-            context.DrawLine(pen, x1, y1, x2, y2);
-        }
-
-        public static void DrawCommonNoteOutline(RenderContext context, float x, float y, float r) {
-            context.FillEllipse(NoteCommonFill, x - r, y - r, r * 2, r * 2);
-            context.DrawEllipse(NoteCommonStroke, x - r, y - r, r * 2, r * 2);
+            context.DrawLine(ConnectionPen, x1, y1, x2, y2);
         }
 
         public static void DrawTapNote(RenderContext context, double now, Note note) {
@@ -233,13 +246,7 @@ namespace StarlightPerformer.Elements {
             float x = GetNoteXPosition(context, now, note),
                 y = GetNoteYPosition(context, now, note),
                 r = GetNoteRadius(context, now, note);
-            DrawCommonNoteOutline(context, x, y, r);
-
-            var r1 = r * ScaleFactor1;
-            using (var fill = GetFillBrush(context.RenderTarget, x, y, r, TapNoteShapeFillColors)) {
-                context.FillEllipse(fill.Brush, x - r1, y - r1, r1 * 2, r1 * 2);
-            }
-            context.DrawEllipse(TapNoteShapeStroke, x - r1, y - r1, r1 * 2, r1 * 2);
+            DrawNote(context, note, x, y, r);
         }
 
         public static void DrawFlickNote(RenderContext context, double now, Note note) {
@@ -253,25 +260,8 @@ namespace StarlightPerformer.Elements {
             float x = GetNoteXPosition(context, now, note),
                 y = GetNoteYPosition(context, now, note),
                 r = GetNoteRadius(context, now, note);
-            DrawCommonNoteOutline(context, x, y, r);
 
-            var r1 = r * ScaleFactor1;
-            // Triangle
-            var polygon = new PointF[3];
-            if (note.FlickType == NoteFlickType.Left) {
-                polygon[0] = new PointF(x - r1, y);
-                polygon[1] = new PointF(x + r1 / 2, y + r1 / 2 * Sqrt3);
-                polygon[2] = new PointF(x + r1 / 2, y - r1 / 2 * Sqrt3);
-
-            } else if (note.FlickType == NoteFlickType.Right) {
-                polygon[0] = new PointF(x + r1, y);
-                polygon[1] = new PointF(x - r1 / 2, y - r1 / 2 * Sqrt3);
-                polygon[2] = new PointF(x - r1 / 2, y + r1 / 2 * Sqrt3);
-            }
-            using (var fill = GetFillBrush(context.RenderTarget, x, y, r, FlickNoteShapeFillOuterColors)) {
-                context.FillPolygon(fill.Brush, polygon);
-            }
-            context.DrawPolygon(FlickNoteShapeStroke, polygon);
+            DrawNote(context, note, x, y, r);
         }
 
         public static void DrawHoldNote(RenderContext context, double now, Note note) {
@@ -281,15 +271,7 @@ namespace StarlightPerformer.Elements {
             float x = GetNoteXPosition(context, now, note),
                 y = GetNoteYPosition(context, now, note),
                 r = GetNoteRadius(context, now, note);
-            DrawCommonNoteOutline(context, x, y, r);
-
-            var r1 = r * ScaleFactor1;
-            using (var fill = GetFillBrush(context.RenderTarget, x, y, r, HoldNoteShapeFillOuterColors)) {
-                context.FillEllipse(fill.Brush, x - r1, y - r1, r1 * 2, r1 * 2);
-            }
-            context.DrawEllipse(HoldNoteShapeStroke, x - r1, y - r1, r1 * 2, r1 * 2);
-            var r2 = r * ScaleFactor3;
-            context.FillEllipse(HoldNoteShapeFillInner, x - r2, y - r2, r2 * 2, r2 * 2);
+            DrawNote(context, note, x, y, r);
         }
 
         public static void DrawSlideNote(RenderContext context, double now, Note note) {
@@ -299,12 +281,10 @@ namespace StarlightPerformer.Elements {
             }
 
             float x, y, r;
-            Color[] fillColors;
             if (note.IsSlideEnd || IsNoteOnStage(note, now)) {
                 x = GetNoteXPosition(context, now, note);
                 y = GetNoteYPosition(context, now, note);
                 r = GetNoteRadius(context, now, note);
-                fillColors = note.IsSlideMidway ? SlideNoteShapeFillOuterTranslucentColors : SlideNoteShapeFillOuterColors;
             } else if (IsNotePassed(note, now)) {
                 if (!note.HasNextFlickOrSlide || IsNotePassed(note.NextFlickOrSlide, now)) {
                     return;
@@ -320,21 +300,12 @@ namespace StarlightPerformer.Elements {
                     y = GetAvatarYPosition(context.ClientSize);
                     x = (float)((now - note.HitTiming) / (nextSlideNote.HitTiming - note.HitTiming)) * (endX - startX) + startX;
                     r = AvatarCircleRadius;
-                    fillColors = SlideNoteShapeFillOuterColors;
                 }
             } else {
                 return;
             }
 
-            DrawCommonNoteOutline(context, x, y, r);
-            var r1 = r * ScaleFactor1;
-            using (var fill = GetFillBrush(context.RenderTarget, x, y, r, fillColors)) {
-                context.FillEllipse(fill.Brush, x - r1, y - r1, r1 * 2, r1 * 2);
-            }
-            var r2 = r * ScaleFactor3;
-            context.FillEllipse(SlideNoteShapeFillInner, x - r2, y - r2, r2 * 2, r2 * 2);
-            var l = r * SlideNoteStrikeHeightFactor;
-            context.FillRectangle(SlideNoteShapeFillInner, x - r1 - 1, y - l, r1 * 2 + 2, l * 2);
+            DrawNote(context, note, x, y, r);
         }
 
         public static void GetBezierFromQuadratic(float x1, float xmid, float x4, out float x2, out float x3) {
@@ -416,8 +387,10 @@ namespace StarlightPerformer.Elements {
             return baseLine - (baseLine - ceiling) * NoteYTransform(timeTransformed);
         }
 
-        public static float GetNoteRadius(RenderContext context, double now, Note note) {
-            var timeRemaining = note.HitTiming - now;
+        public static float GetNoteRadius(RenderContext context, double now, Note note) => GetNoteRadius(context, now, note.HitTiming);
+
+        public static float GetNoteRadius(RenderContext context, double now, double hitTiming) {
+            var timeRemaining = hitTiming - now;
             var timeTransformed = NoteTimeTransform((float)timeRemaining / FutureTimeWindow);
             if (timeTransformed < 0.75f) {
                 if (timeTransformed < 0f) {
@@ -482,65 +455,89 @@ namespace StarlightPerformer.Elements {
             Passed
         }
 
+        private static (float x, float y) GetIconLocation(SongColor songColor, Note note) {
+            var column = 3;
+            switch (songColor) {
+                case SongColor.All:
+                    column = 3;
+                    break;
+                case SongColor.Cute:
+                    column = 0;
+                    break;
+                case SongColor.Cool:
+                    column = 1;
+                    break;
+                case SongColor.Passion:
+                    column = 2;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(songColor));
+            }
+            var row = 0;
+            if (note.IsTap) {
+                row = 0;
+            } else if (note.IsHoldStart) {
+                row = 1;
+            } else if (note.FlickType == NoteFlickType.Left) {
+                row = 2;
+            } else if (note.FlickType == NoteFlickType.Right) {
+                row = 3;
+            } /*else if (note.ShouldBeRenderedAsSlide) {
+                // Not implemented, don't use.
+                row = 4;
+            }*/
+
+            return (x: ImageWidth * column, y: ImageHeight * row);
+        }
+
+        private static void DrawNote(RenderContext context, Note note, float x, float y, float r) {
+            var w = r * 2 * ImageAspectRatio;
+            var h = r * 2;
+            x -= w / 2;
+            y -= h / 2;
+
+            var loc = GetIconLocation(DefaultSongColor, note);
+            context.DrawImage(NotesImage, x, y, w, h, loc.x, loc.y, ImageWidth, ImageHeight);
+        }
+
         public static float FutureTimeWindow = 1f;
         public static readonly float PastTimeWindow = 0.2f;
-        public static readonly float AvatarCircleDiameter = 50;
+        public static readonly float AvatarCircleDiameter = 110;
         public static readonly float AvatarCircleRadius = AvatarCircleDiameter / 2;
-        public static readonly float[] AvatarCenterXStartPositions = { 0.272363281f, 0.381347656f, 0.5f, 0.618652344f, 0.727636719f };
-        public static readonly float[] AvatarCenterXEndPositions = { 0.192382812f, 0.346191406f, 0.5f, 0.653808594f, 0.807617188f };
+        public static readonly float[] AvatarCenterXStartPositions = { 0.3f, 0.4f, 0.5f, 0.6f, 0.7f };
+        public static readonly float[] AvatarCenterXEndPositions = { 0.18f, 0.34f, 0.5f, 0.66f, 0.82f };
         public static readonly float BaseLineYPosition = 0.828125f;
         // Then we know the bottom is <BaseLineYPosition + (PastWindow / FutureWindow) * (BaseLineYPosition - Ceiling))>.
         public static readonly float FutureNoteCeiling = 0.21875f;
 
-        private static readonly float NoteShapeStrokeWidth = 1;
+        private static readonly string NotesBitmapFilePath = "Resources/images/notes/notes.png";
+        private static readonly float ImageWidth = 154;
+        private static readonly float ImageHeight = 110;
+        private static readonly float ImageAspectRatio = ImageWidth / ImageHeight;
 
-        private static readonly float ScaleFactor1 = 0.8f;
-        private static readonly float ScaleFactor2 = 0.5f;
-        private static readonly float ScaleFactor3 = (float)1 / 3f;
-        private static readonly float SlideNoteStrikeHeightFactor = (float)4 / 30;
+        private static Bitmap NotesImage { get; set; }
 
-        private static Pen CeilingPen { get; set; }
-        private static Pen HoldLinePen { get; set; }
+        private static readonly SongColor DefaultSongColor = SongColor.All;
+
+        private static LinearGradientBrushEx ConnectionBrush { get; set; }
+        private static Pen ConnectionPen { get; set; }
+
+        private static readonly float ConnectionStrokeWidth = 55;
+        private const int ConnectionAlpha = 63;
+
+        private static readonly Color[] GradientColors = {
+            Color.FromArgb(ConnectionAlpha, 255, 0, 0),
+            Color.FromArgb(ConnectionAlpha, 255, 165, 0),
+            Color.FromArgb(ConnectionAlpha, 255, 255, 0),
+            Color.FromArgb(ConnectionAlpha, 0, 255, 0),
+            Color.FromArgb(ConnectionAlpha, 0, 255, 255),
+            Color.FromArgb(ConnectionAlpha, 0, 0, 255),
+            Color.FromArgb(ConnectionAlpha, 43, 0, 255),
+            Color.FromArgb(ConnectionAlpha, 87, 0, 255),
+            Color.FromArgb(ConnectionAlpha, 255, 0, 0),
+        };
+
         private static Pen SyncLinePen { get; set; }
-        private static Pen FlickLinePen { get; set; }
-        private static Pen SlideLinePen { get; set; }
-
-        private static Pen NoteCommonStroke { get; set; }
-        private static Brush NoteCommonFill { get; set; }
-        private static Pen TapNoteShapeStroke { get; set; }
-        private static Color[] TapNoteShapeFillColors { get; } = { Color.FromArgb(0xFF, 0x99, 0xBB), Color.FromArgb(0xFF, 0x33, 0x66) };
-        private static Pen HoldNoteShapeStroke { get; set; }
-        private static Color[] HoldNoteShapeFillOuterColors { get; } = { Color.FromArgb(0xFF, 0xDD, 0x66), Color.FromArgb(0xFF, 0xBB, 0x22) };
-        private static Brush HoldNoteShapeFillInner { get; set; }
-        private static Pen FlickNoteShapeStroke { get; set; }
-        private static Color[] FlickNoteShapeFillOuterColors { get; } = { Color.FromArgb(0x88, 0xBB, 0xFF), Color.FromArgb(0x22, 0x55, 0xBB) };
-        private static Brush FlickNoteShapeFillInner { get; set; }
-        private static Color[] SlideNoteShapeFillOuterColors { get; } = { Color.FromArgb(0xA5, 0x46, 0xDA), Color.FromArgb(0xE1, 0xA8, 0xFB) };
-        private static Color[] SlideNoteShapeFillOuterTranslucentColors { get; } = { Color.FromArgb(0x80, 0xA5, 0x46, 0xDA), Color.FromArgb(0x80, 0xE1, 0xA8, 0xFB) };
-        private static Brush SlideNoteShapeFillInner { get; set; }
-
-        private static LinearGradientBrushEx GetFillBrush(RenderTarget target, float x, float y, float r, Color[] colors) {
-            var r1 = r * ScaleFactor1;
-            var top = y - r1;
-            var bottom = y + r1;
-            var props = new LinearGradientBrushProperties {
-                StartPoint = new RawVector2(0, top),
-                EndPoint = new RawVector2(0, bottom)
-            };
-            var gradientStops = new List<GradientStop>();
-            var count = colors.Length;
-            for (var i = 0; i < count; ++i) {
-                var gs = new GradientStop {
-                    Color = colors[i].ColorToRC4(),
-                    Position = (float)i / count
-                };
-                gradientStops.Add(gs);
-            }
-            var collection = new GradientStopCollection(target, gradientStops.ToArray(), ExtendMode.Wrap);
-            return new LinearGradientBrushEx(target, props, collection);
-        }
-
-        private static readonly float Sqrt3 = (float)Math.Sqrt(3);
 
         private readonly Score _score;
 

@@ -1,6 +1,10 @@
 ﻿using System.Diagnostics;
 using System.Drawing;
+using SharpDX.Direct2D1;
 using SharpDX.Mathematics.Interop;
+using SharpDX.WIC;
+using Bitmap = SharpDX.Direct2D1.Bitmap;
+using PixelFormat = SharpDX.WIC.PixelFormat;
 
 namespace StarlightPerformer.Stage {
     public static class D2DHelper {
@@ -20,6 +24,22 @@ namespace StarlightPerformer.Stage {
             var g = (float)color.G / byte.MaxValue;
             var b = (float)color.B / byte.MaxValue;
             return new RawColor3(r, g, b);
+        }
+
+        public static BitmapSource LoadBitmapAsWic(string fileName) {
+            using (var factory = new ImagingFactory()) {
+                using (var decoder = new BitmapDecoder(factory, fileName, DecodeOptions.CacheOnDemand)) {
+                    var converter = new FormatConverter(factory);
+                    converter.Initialize(decoder.GetFrame(0), PixelFormat.Format32bppPBGRA, BitmapDitherType.None, null, 0, BitmapPaletteType.Custom);
+                    return converter;
+                }
+            }
+        }
+
+        public static Bitmap LoadBitmap(string fileName, RenderTarget target) {
+            using (var bmp = LoadBitmapAsWic(fileName)) {
+                return Bitmap.FromWicBitmap(target, bmp);
+            }
         }
 
     }

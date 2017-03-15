@@ -4,7 +4,6 @@ using System.Drawing;
 using System.Windows.Forms;
 using SharpDX;
 using SharpDX.Direct2D1;
-using SharpDX.Mathematics.Interop;
 using StarlightPerformer.Core;
 
 namespace StarlightPerformer.Stage {
@@ -20,6 +19,8 @@ namespace StarlightPerformer.Stage {
 
         public Game Game { get; }
 
+        public Color ClearColor { get; set; } = Color.Black;
+
         public void Draw(IList<Element> elements, GameTime gameTime) {
             var context = _renderContext;
             lock (_sizeLock) {
@@ -30,7 +31,7 @@ namespace StarlightPerformer.Stage {
                     _renderTarget.Dispose();
                     _hwndRenderTargetProperties.PixelSize = _newSize;
                     _renderTarget = new WindowRenderTarget(_factory, _renderTargetProperties, _hwndRenderTargetProperties);
-                    context = _renderContext = new RenderContext(_renderTarget, new Size(_newSize.Width, _newSize.Height));
+                    context = _renderContext = new RenderContext(this, _renderTarget, new Size(_newSize.Width, _newSize.Height));
                     foreach (var element in elements) {
                         element.OnGotContext(context);
                     }
@@ -64,7 +65,7 @@ namespace StarlightPerformer.Stage {
             _hwndRenderTargetProperties.PixelSize = new Size2(clientSize.Width, clientSize.Height);
             _renderTarget = new WindowRenderTarget(factory, _renderTargetProperties, _hwndRenderTargetProperties);
 
-            var context = _renderContext = new RenderContext(_renderTarget, clientSize);
+            var context = _renderContext = new RenderContext(this, _renderTarget, clientSize);
             foreach (var element in Game.Elements) {
                 element.OnGotContext(context);
             }

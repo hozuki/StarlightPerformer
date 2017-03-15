@@ -57,5 +57,7 @@
 
         public bool HasNextFlickOrSlide => NextFlickOrSlide != null;
 
+        public bool ShouldBeRenderedAsSlide => IsSlide && !HasPrevFlickOrSlide && HasNextFlickOrSlide && NextFlickOrSlide.FlickType != NoteFlickType.None;
+
     }
 }

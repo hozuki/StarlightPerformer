@@ -14,6 +14,8 @@ namespace StarlightPerformer {
         public override void Initialize() {
             var options = Options;
 
+            Elements.Add(new AvatarLayer());
+
             var score = Score.FromFile(options.ScoreFilePath);
             Elements.Add(new NotesLayer(score));
 
