@@ -43,6 +43,7 @@
     <Compile Include="DisposableBase.cs" />
     <Compile Include="GameTime.cs" />
     <Compile Include="Interop\NativeMethods.cs" />
+    <Compile Include="MathUtils.cs" />
     <Compile Include="PerformanceCounter.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

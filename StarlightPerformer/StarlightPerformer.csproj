@@ -42,7 +42,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Elements\AvatarLayer.cs" />
+    <Compile Include="Elements\Internal\OnStageStatus.cs" />
+    <Compile Include="Elements\Internal\RibbonMesh.cs" />
     <Compile Include="Elements\NotesLayer.cs" />
+    <Compile Include="Elements\NotesLayer.Notes.cs" />
+    <Compile Include="Elements\NotesLayer.Ribbon.cs" />
+    <Compile Include="Elements\NotesLayerUtils.cs" />
     <Compile Include="FStartup.cs">
       <SubType>Form</SubType>
     </Compile>

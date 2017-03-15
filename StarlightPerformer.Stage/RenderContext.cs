@@ -17,9 +17,9 @@ namespace StarlightPerformer.Stage {
 
         public StageRenderer Renderer { get; }
 
-        public RenderTarget RenderTarget { get; }
-
         public Size ClientSize { get; }
+
+        public RenderTarget RenderTarget { get; }
 
         public void BeginDraw() {
             RenderTarget.BeginDraw();
@@ -147,6 +147,10 @@ namespace StarlightPerformer.Stage {
             var dest = new RawRectangleF(x, y, x + w, y + h);
             var src = new RawRectangleF(sx, sy, sx + sw, sy + sh);
             RenderTarget.DrawBitmap(bitmap, dest, opacity, BitmapInterpolationMode.Linear, src);
+        }
+
+        public void FillMesh(Mesh mesh, Brush brush) {
+            RenderTarget.FillMesh(mesh, brush);
         }
 
         protected override void Dispose(bool disposing) {
