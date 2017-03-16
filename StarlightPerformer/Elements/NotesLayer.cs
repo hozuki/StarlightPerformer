@@ -20,7 +20,7 @@ namespace StarlightPerformer.Elements {
         public override void OnGotContext(RenderContext context) {
             base.OnGotContext(context);
 
-            NotesImage = D2DHelper.LoadBitmap(NotesBitmapFilePath, context.RenderTarget);
+            NotesImage = D2DHelper.LoadBitmap(Definitions.NotesBitmapFilePath, context.RenderTarget);
 
             var size = context.ClientSize;
             var props = new LinearGradientBrushProperties {
@@ -131,23 +131,6 @@ namespace StarlightPerformer.Elements {
             float xLeft = Math.Min(x1, x2), xRight = Math.Max(x1, x2);
             context.DrawLine(SyncLinePen, xLeft + r, y, xRight - r, y);
         }
-
-
-
-        internal static float FutureTimeWindow = 1f;
-        internal static readonly float PastTimeWindow = 0.2f;
-        internal static readonly float AvatarCircleDiameter = 110;
-        internal static readonly float AvatarCircleRadius = AvatarCircleDiameter / 2;
-        internal static readonly float[] AvatarCenterXStartPositions = { 0.3f, 0.4f, 0.5f, 0.6f, 0.7f };
-        internal static readonly float[] AvatarCenterXEndPositions = { 0.18f, 0.34f, 0.5f, 0.66f, 0.82f };
-        internal static readonly float BaseLineYPosition = 0.828125f;
-        // Then we know the bottom is <BaseLineYPosition + (PastWindow / FutureWindow) * (BaseLineYPosition - Ceiling))>.
-        internal static readonly float FutureNoteCeiling = 0.21875f;
-
-        private readonly string NotesBitmapFilePath = "Resources/images/notes/notes.png";
-        internal static readonly float ImageCellWidth = 154;
-        internal static readonly float ImageCellHeight = 110;
-        private static readonly float ImageAspectRatio = ImageCellWidth / ImageCellHeight;
 
         private Bitmap NotesImage { get; set; }
 

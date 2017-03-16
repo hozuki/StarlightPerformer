@@ -18,6 +18,7 @@ namespace StarlightPerformer {
 
             var score = Score.FromFile(options.ScoreFilePath);
             Elements.Add(new NotesLayer(score));
+            Elements.Add(new NoteLeavingSoundEmitter(score));
 
             base.Initialize();
         }

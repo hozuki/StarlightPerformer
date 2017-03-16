@@ -55,8 +55,8 @@ namespace StarlightPerformer.Elements {
 
         public static float GetNoteTransformedTime(double now, double hitTiming, bool clampComing = false, bool clampPassed = false) {
             var timeRemaining = hitTiming - now;
-            var timeRemainingInWindow = (float)timeRemaining / NotesLayer.FutureTimeWindow;
-            if (clampComing && timeRemaining > NotesLayer.FutureTimeWindow) {
+            var timeRemainingInWindow = (float)timeRemaining / Definitions.FutureTimeWindow;
+            if (clampComing && timeRemaining > Definitions.FutureTimeWindow) {
                 timeRemainingInWindow = 1f;
             }
             if (clampPassed && timeRemaining < 0f) {
@@ -77,9 +77,9 @@ namespace StarlightPerformer.Elements {
 
         public static float GetNoteXPosition(RenderContext context, NotePosition finishPosition, float timeTransformed) {
             var clientSize = context.ClientSize;
-            var endPos = NotesLayer.AvatarCenterXEndPositions[(int)finishPosition - 1] * clientSize.Width;
+            var endPos = Definitions.AvatarCenterXEndPositions[(int)finishPosition - 1] * clientSize.Width;
             var displayStartPosition = finishPosition;
-            var startPos = NotesLayer.AvatarCenterXStartPositions[(int)displayStartPosition - 1] * clientSize.Width;
+            var startPos = Definitions.AvatarCenterXStartPositions[(int)displayStartPosition - 1] * clientSize.Width;
             return endPos - (endPos - startPos) * NoteXTransform(timeTransformed);
         }
 
@@ -95,8 +95,8 @@ namespace StarlightPerformer.Elements {
 
         public static float GetNoteYPosition(RenderContext context, float timeTransformed) {
             var clientSize = context.ClientSize;
-            float ceiling = NotesLayer.FutureNoteCeiling * clientSize.Height,
-                baseLine = NotesLayer.BaseLineYPosition * clientSize.Height;
+            float ceiling = Definitions.FutureNoteCeiling * clientSize.Height,
+                baseLine = Definitions.BaseLineYPosition * clientSize.Height;
             return baseLine - (baseLine - ceiling) * NoteYTransform(timeTransformed);
         }
 
@@ -104,16 +104,16 @@ namespace StarlightPerformer.Elements {
 
         public static float GetNoteRadius(double now, double hitTiming) {
             var timeRemaining = hitTiming - now;
-            var timeTransformed = NoteTimeTransform((float)timeRemaining / NotesLayer.FutureTimeWindow);
+            var timeTransformed = NoteTimeTransform((float)timeRemaining / Definitions.FutureTimeWindow);
             if (timeTransformed < 0.75f) {
                 if (timeTransformed < 0f) {
-                    return NotesLayer.AvatarCircleRadius;
+                    return Definitions.AvatarCircleRadius;
                 } else {
-                    return NotesLayer.AvatarCircleRadius * (1f - timeTransformed * 0.933333333f);
+                    return Definitions.AvatarCircleRadius * (1f - timeTransformed * 0.933333333f);
                 }
             } else {
                 if (timeTransformed < 1f) {
-                    return NotesLayer.AvatarCircleRadius * ((1f - timeTransformed) * 1.2f);
+                    return Definitions.AvatarCircleRadius * ((1f - timeTransformed) * 1.2f);
                 } else {
                     return 0f;
                 }
@@ -121,33 +121,33 @@ namespace StarlightPerformer.Elements {
         }
 
         public static float GetAvatarYPosition(Size clientSize) {
-            return clientSize.Height * NotesLayer.BaseLineYPosition;
+            return clientSize.Height * Definitions.BaseLineYPosition;
         }
 
         public static float GetStartXByNotePosition(Size clientSize, NotePosition position) {
-            return clientSize.Width * NotesLayer.AvatarCenterXStartPositions[(int)position - 1];
+            return clientSize.Width * Definitions.AvatarCenterXStartPositions[(int)position - 1];
         }
 
         public static float GetEndXByNotePosition(Size clientSize, NotePosition position) {
-            return clientSize.Width * NotesLayer.AvatarCenterXEndPositions[(int)position - 1];
+            return clientSize.Width * Definitions.AvatarCenterXEndPositions[(int)position - 1];
         }
 
         public static float GetBirthYPosition(Size clientSize) {
-            return clientSize.Height * NotesLayer.FutureNoteCeiling;
+            return clientSize.Height * Definitions.FutureNoteCeiling;
         }
 
         public static OnStageStatus GetNoteOnStageStatus(Note note, double now) {
             if (note.HitTiming < now) {
                 return OnStageStatus.Passed;
             }
-            if (note.HitTiming > now + NotesLayer.FutureTimeWindow) {
+            if (note.HitTiming > now + Definitions.FutureTimeWindow) {
                 return OnStageStatus.Upcoming;
             }
             return OnStageStatus.OnStage;
         }
 
         public static bool IsNoteOnStage(Note note, double now) {
-            return now <= note.HitTiming && note.HitTiming <= now + NotesLayer.FutureTimeWindow;
+            return now <= note.HitTiming && note.HitTiming <= now + Definitions.FutureTimeWindow;
         }
 
         public static bool IsNotePassed(Note note, double now) {
@@ -155,7 +155,7 @@ namespace StarlightPerformer.Elements {
         }
 
         public static bool IsNoteComing(Note note, double now) {
-            return note.HitTiming > now + NotesLayer.FutureTimeWindow;
+            return note.HitTiming > now + Definitions.FutureTimeWindow;
         }
 
         public static (float x, float y) GetIconLocation(SongColor songColor, Note note) {
@@ -190,7 +190,7 @@ namespace StarlightPerformer.Elements {
                 row = 4;
             }*/
 
-            return (x: NotesLayer.ImageCellWidth * column, y: NotesLayer.ImageCellHeight * row);
+            return (x: Definitions.NoteImageCellWidth * column, y: Definitions.NoteImageCellHeight * row);
         }
 
     }

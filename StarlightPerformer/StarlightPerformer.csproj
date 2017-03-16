@@ -41,9 +41,11 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Definitions.cs" />
     <Compile Include="Elements\AvatarLayer.cs" />
     <Compile Include="Elements\Internal\OnStageStatus.cs" />
     <Compile Include="Elements\Internal\RibbonMesh.cs" />
+    <Compile Include="Elements\NoteLeavingSoundEmitter.cs" />
     <Compile Include="Elements\NotesLayer.cs" />
     <Compile Include="Elements\NotesLayer.Notes.cs" />
     <Compile Include="Elements\NotesLayer.Ribbon.cs" />

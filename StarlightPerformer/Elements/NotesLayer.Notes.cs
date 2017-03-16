@@ -65,7 +65,7 @@ namespace StarlightPerformer.Elements {
                     var endX = NotesLayerUtils.GetEndXByNotePosition(context.ClientSize, nextSlideNote.FinishPosition);
                     y = NotesLayerUtils.GetAvatarYPosition(context.ClientSize);
                     x = (float)((now - note.HitTiming) / (nextSlideNote.HitTiming - note.HitTiming)) * (endX - startX) + startX;
-                    r = AvatarCircleRadius;
+                    r = Definitions.AvatarCircleRadius;
                 }
             } else {
                 return;
@@ -75,13 +75,13 @@ namespace StarlightPerformer.Elements {
         }
 
         private void DrawNoteImage(RenderContext context, Note note, float x, float y, float r) {
-            var w = r * 2 * ImageAspectRatio;
+            var w = r * 2 * Definitions.NoteImageAspectRatio;
             var h = r * 2;
             x -= w / 2;
             y -= h / 2;
 
             var loc = NotesLayerUtils.GetIconLocation(DefaultSongColor, note);
-            context.DrawImage(NotesImage, x, y, w, h, loc.x, loc.y, ImageCellWidth, ImageCellHeight);
+            context.DrawImage(NotesImage, x, y, w, h, loc.x, loc.y, Definitions.NoteImageCellWidth, Definitions.NoteImageCellHeight);
         }
 
     }
